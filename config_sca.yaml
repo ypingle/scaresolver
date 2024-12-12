@@ -3,7 +3,6 @@ SCA_account: sca_account
 SCA_username: sca_user
 SCA_password: sca_password
 SCA_proxy: 
-SCA_proxy: 
 SCA_url: 
 SCA_api_url: https://eu.api-sca.checkmarx.net
 SCA_auth_url: https://eu.platform.checkmarx.net/identity/connect/token
