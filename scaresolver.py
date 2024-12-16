@@ -86,11 +86,19 @@ def validate_csproj_dependencies(csproj_path):
 
 def zip_folder(folder_to_zip, output_folder='src'):
     try:
-        # Get the current working directory
-        current_directory = os.getcwd()
+        import os
+        import zipfile
+        import fnmatch
+
+        # Determine if output_folder is a full path or relative to the current working directory
+        if os.path.isabs(output_folder):
+            output_folder_path = output_folder
+        else:
+            # Connect output_folder to the current working directory
+            current_directory = os.getcwd()
+            output_folder_path = os.path.join(current_directory, output_folder)
 
         # Create the output folder if it doesn't exist
-        output_folder_path = os.path.join(current_directory, output_folder)
         if not os.path.exists(output_folder_path):
             os.makedirs(output_folder_path)
 
@@ -166,6 +174,11 @@ def main():
             help="Optional: The name of the team."
         )
         parser.add_argument(
+            "--temp_folder", 
+            default="", 
+            help="Optional: The path of the temp folder to create zip."
+        )
+        parser.add_argument(
             "--offline", 
             action="store_true", 
             help="Run in offline mode. If set, no external connections will be made."
@@ -183,6 +196,7 @@ def main():
         team_name = args.team_name
         offline = args.offline
         upload = args.upload
+        temp_folder = args.temp_folder
 
         print(f"source folder = {source_folder}")
         print(f"project name = {project_name}")
@@ -190,25 +204,30 @@ def main():
         print(f"offline mode = {offline}")
         print(f"upload results = {upload}")
 
-        # Example conditional logic based on new parameters
+        zip_file_name = None  # Ensure it's initialized
+
         if offline:
             print("Running in offline mode. Skipping external dependencies.")
         if upload:
             print("Uploading scan results.")
         
-        if(upload):
+        if upload:
             if source_folder.endswith('.zip'):
                 zip_file_name = source_folder
             else:
-                print("zip file path missing!!")
+                raise ValueError("zip file path missing!")
         else:    
-            zip_file_name = zip_folder(source_folder, 'manifest')
+            zip_file_name = zip_folder(source_folder, temp_folder)
 
-        if(zip_file_name != "" and not offline):
+        if zip_file_name and not offline:
             # If zip file is generated, proceed with scanning
             SCA_scan_packages(project_name, zip_file_name, team_name)
     except Exception as e:
         print("Exception: upload_offline_files:", str(e))
+    finally:
+        # Delete the zip file after processing
+        if zip_file_name and os.path.exists(zip_file_name):
+            os.remove(zip_file_name)
 
 if __name__ == '__main__':
     main()
