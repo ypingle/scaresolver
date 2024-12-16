@@ -1,9 +1,10 @@
 import SCA_api
 import os
-import zipfile
-import fnmatch
+import datetime
 import argparse
 import xml.etree.ElementTree as ET
+import zipfile
+import fnmatch
 
 def SCA_scan_packages(project_name, zip_manifest_file, team_name=None):
     access_token = SCA_api.get_access_token()
@@ -84,12 +85,8 @@ def validate_csproj_dependencies(csproj_path):
         print(f"Error validating dependencies in {csproj_path}: {e}")
         return False
 
-def zip_folder(folder_to_zip, output_folder='src'):
+def zip_folder(folder_to_zip, project_name, output_folder='manifest'):
     try:
-        import os
-        import zipfile
-        import fnmatch
-
         # Determine if output_folder is a full path or relative to the current working directory
         if os.path.isabs(output_folder):
             output_folder_path = output_folder
@@ -103,8 +100,8 @@ def zip_folder(folder_to_zip, output_folder='src'):
             os.makedirs(output_folder_path)
 
         # Extract the folder name to use as the zip file name
-        folder_name = os.path.basename(os.path.normpath(folder_to_zip))
-        zip_file_name = folder_name + '.zip'
+        current_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        zip_file_name = f"{project_name}_{current_datetime}.zip"
         zip_file_path = os.path.join(output_folder_path, zip_file_name)
 
         # Define the patterns to include in the zip file
@@ -156,6 +153,7 @@ def zip_folder(folder_to_zip, output_folder='src'):
         return None
 
 def main():
+    zip_file_name = None  # Initialize at the start to avoid UnboundLocalError
     try:
         parser = argparse.ArgumentParser(
             description="ScareSolver - Tool for scanning packages in a source folder"
@@ -204,29 +202,31 @@ def main():
         print(f"offline mode = {offline}")
         print(f"upload results = {upload}")
 
-        zip_file_name = None  # Ensure it's initialized
-
         if offline:
             print("Running in offline mode. Skipping external dependencies.")
-        if upload:
-            print("Uploading scan results.")
-        
         if upload:
             if source_folder.endswith('.zip'):
                 zip_file_name = source_folder
             else:
                 raise ValueError("zip file path missing!")
-        else:    
-            zip_file_name = zip_folder(source_folder, temp_folder)
+        else:
+            if(temp_folder):
+                zip_file_name = zip_folder(source_folder, project_name, temp_folder)
+            else:
+                zip_file_name = zip_folder(source_folder, project_name)
 
         if zip_file_name and not offline:
             # If zip file is generated, proceed with scanning
             SCA_scan_packages(project_name, zip_file_name, team_name)
+
+    except SystemExit as e:
+        # Catch argparse errors (e.g., missing arguments)
+        print(f"SystemExit: {e}. Check if required arguments are provided.")
     except Exception as e:
         print("Exception: upload_offline_files:", str(e))
     finally:
-        # Delete the zip file after processing
-        if zip_file_name and os.path.exists(zip_file_name):
+        # Delete the zip file after processing, but only if not offline
+        if zip_file_name and os.path.exists(zip_file_name) and not offline:
             os.remove(zip_file_name)
 
 if __name__ == '__main__':
