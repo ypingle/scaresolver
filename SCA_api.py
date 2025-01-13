@@ -17,6 +17,7 @@ SCA_url = config['SCA_url']
 SCA_api_url = config['SCA_api_url']
 SCA_auth_url = config['SCA_auth_url']
 SCA_proxy = config['SCA_proxy']
+nexus_server_url = config['nexus_server_url']
 proxy_servers = {
    'https': SCA_proxy
 }
@@ -326,13 +327,13 @@ def SCA_scan_packages(project_name, zip_manifest_file, access_token=""):
     if(not access_token):
         access_token = get_access_token()
 
-        project_id = SCA_get_project_id(access_token, project_name)
+        project_id = SCA_get_project_id(project_name, access_token)
         if (project_id == ''):
-            project_id = SCA_create_project(access_token, project_name)
+            project_id = SCA_create_project(project_name, access_token)
         if project_id:
-            upload_file_url = SCA_get_upload_link(access_token, project_id)
+            upload_file_url = SCA_get_upload_link(project_id, access_token)
             if upload_file_url:
-                SCA_upload_file(access_token, upload_file_url, zip_manifest_file)
-                scan_id = SCA_scan_zip(access_token, project_id, upload_file_url)
+                SCA_upload_file(upload_file_url, zip_manifest_file, access_token)
+                scan_id = SCA_scan_zip(project_id, upload_file_url)
                 return scan_id
     return None

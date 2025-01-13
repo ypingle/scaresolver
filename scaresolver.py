@@ -85,26 +85,30 @@ def validate_csproj_dependencies(csproj_path):
         print(f"Error validating dependencies in {csproj_path}: {e}")
         return False
 
-def zip_folder(folder_to_zip, project_name, output_folder='manifest'):
+def zip_folder(folder_to_zip, project_name, output_folder=None):
     try:
-        # Determine if output_folder is a full path or relative to the current working directory
-        if os.path.isabs(output_folder):
-            output_folder_path = output_folder
-        else:
-            # Connect output_folder to the current working directory
+
+        # Determine output folder path
+        if output_folder:  # If output_folder is provided
+            if os.path.isabs(output_folder):
+                output_folder_path = output_folder
+            else:
+                current_directory = os.getcwd()
+                output_folder_path = os.path.join(current_directory, output_folder)
+        else:  # Default to "manifest" in the current working directory
             current_directory = os.getcwd()
-            output_folder_path = os.path.join(current_directory, output_folder)
+            output_folder_path = os.path.join(current_directory, 'manifest')
 
         # Create the output folder if it doesn't exist
         if not os.path.exists(output_folder_path):
             os.makedirs(output_folder_path)
 
-        # Extract the folder name to use as the zip file name
+        # Generate zip file name with current datetime
         current_datetime = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         zip_file_name = f"{project_name}_{current_datetime}.zip"
         zip_file_path = os.path.join(output_folder_path, zip_file_name)
 
-        # Define the patterns to include in the zip file
+        # Define patterns to include in the zip file
         patterns = ['package.json', 'packages.config', '*.csproj', 'requirements.txt', 'pom.xml', 'composer.json', 'Directory.Packages.props']
 
         converted_csproj = None
@@ -123,7 +127,7 @@ def zip_folder(folder_to_zip, project_name, output_folder='manifest'):
                                 converted_csproj = os.path.join(output_folder_path, 'converted.csproj')
                                 convert_directory_packages_to_csproj(file_path, converted_csproj)
 
-                                # Ensure the converted csproj is actually written to zip
+                                # Ensure the converted csproj is written to the zip
                                 if os.path.exists(converted_csproj):
                                     zipf.write(converted_csproj, 'converted.csproj')
                             
@@ -173,8 +177,8 @@ def main():
         )
         parser.add_argument(
             "--temp_folder", 
-            default="", 
-            help="Optional: The path of the temp folder to create zip."
+            default=None, 
+            help="Optional: The path of the temp folder to create zip. Defaults to 'manifest' in current directory."
         )
         parser.add_argument(
             "--offline", 
@@ -210,17 +214,13 @@ def main():
             else:
                 raise ValueError("zip file path missing!")
         else:
-            if(temp_folder):
-                zip_file_name = zip_folder(source_folder, project_name, temp_folder)
-            else:
-                zip_file_name = zip_folder(source_folder, project_name)
+            zip_file_name = zip_folder(source_folder, project_name, temp_folder)
 
         if zip_file_name and not offline:
             # If zip file is generated, proceed with scanning
             SCA_scan_packages(project_name, zip_file_name, team_name)
 
     except SystemExit as e:
-        # Catch argparse errors (e.g., missing arguments)
         print(f"SystemExit: {e}. Check if required arguments are provided.")
     except Exception as e:
         print("Exception: upload_offline_files:", str(e))
